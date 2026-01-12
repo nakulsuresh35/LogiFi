@@ -6,9 +6,10 @@ import 'react-native-url-polyfill/auto'; // Required for Supabase on React Nativ
 import { supabase } from './lib/supabase';
 
 // --- IMPORT YOUR SCREENS HERE ---
-// Make sure these files exist in your 'screens' folder!
+// Note: Keeping your "./src/screens/" path structure
 import AdminHomeScreen from './src/screens/AdminHomeScreen';
 import DriverHomeScreen from './src/screens/DriverHomeScreen';
+import EndTripScreen from './src/screens/EndTripScreen'; // <--- NEW IMPORT
 import LoginScreen from './src/screens/LoginScreen';
 import StartTripScreen from './src/screens/StartTripScreen';
 
@@ -73,7 +74,7 @@ export default function App() {
         userRole === 'admin' ? (
           <>
             <Stack.Screen name="AdminHome" component={AdminHomeScreen} />
-            {/* Add other Admin screens here later (e.g. Financials, Tax) */}
+            {/* Add other Admin screens here later */}
           </>
         ) : 
         
@@ -81,12 +82,20 @@ export default function App() {
         (
           <>
             <Stack.Screen name="DriverHome" component={DriverHomeScreen} />
+            
             <Stack.Screen 
               name="StartTrip" 
               component={StartTripScreen} 
               options={{ headerShown: true, title: 'Start New Trip' }} 
             />
-            {/* We will add AddExpenseScreen here later */}
+            
+            {/* 👇 NEW SCREEN ADDED HERE 👇 */}
+            <Stack.Screen 
+              name="EndTrip" 
+              component={EndTripScreen} 
+              options={{ headerShown: true, title: 'End Current Trip' }} 
+            />
+            
           </>
         )}
 

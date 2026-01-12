@@ -86,7 +86,7 @@ export default function DriverHomeScreen({ navigation }) {
 
   const renderActiveTripView = () => (
     <ScrollView contentContainerStyle={styles.activeContainer}>
-      {/* Trip Info Card */}
+      {/* ... Trip Info Card Code ... */}
       <View style={styles.activeCard}>
         <View style={styles.activeHeader}>
           <Text style={styles.activeLabel}>ONGOING TRIP</Text>
@@ -118,7 +118,7 @@ export default function DriverHomeScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Action Grid for Expenses */}
+      {/* ... Quick Actions Grid Code ... */}
       <Text style={styles.sectionTitle}>Quick Actions</Text>
       <View style={styles.grid}>
         <TouchableOpacity style={styles.gridBtn} onPress={() => Alert.alert("Coming Soon", "Diesel Form")}>
@@ -132,7 +132,11 @@ export default function DriverHomeScreen({ navigation }) {
         </TouchableOpacity>
       </View>
       
-      <TouchableOpacity style={styles.endBtn} onPress={() => Alert.alert("Coming Soon", "End Trip Logic")}>
+      {/* 👇 THIS IS THE BUTTON WE UPDATED 👇 */}
+      <TouchableOpacity 
+        style={styles.endBtn} 
+        onPress={() => navigation.navigate('EndTrip', { trip: currentTrip })}
+      >
         <Text style={styles.endBtnText}>END TRIP</Text>
       </TouchableOpacity>
     </ScrollView>
