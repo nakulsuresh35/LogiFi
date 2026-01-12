@@ -2,7 +2,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,8 +10,9 @@ import {
 } from 'react-native';
 import { COLORS } from '../constants/colors'; // Assumed existing
 import { supabase } from '../lib/supabase';
+import { Play, LogOut, MapPin, Fuel, FileText, Droplets, IndianRupee } from 'lucide-react-native';
 // Added MapPin and Fuel for the active dashboard visualization
-import { FileText, Fuel, LogOut, MapPin, Play } from 'lucide-react-native';
+
 
 export default function DriverHomeScreen({ navigation }) {
   const [truckName, setTruckName] = useState('Loading...');
@@ -118,17 +118,45 @@ export default function DriverHomeScreen({ navigation }) {
         </View>
       </View>
 
-      {/* ... Quick Actions Grid Code ... */}
+      {/* 4-BUTTON ACTION GRID */}
       <Text style={styles.sectionTitle}>Quick Actions</Text>
+      
+      {/* Row 1 */}
       <View style={styles.grid}>
-        <TouchableOpacity style={styles.gridBtn} onPress={() => Alert.alert("Coming Soon", "Diesel Form")}>
-            <Fuel size={32} color={COLORS.primary} />
+        <TouchableOpacity 
+          style={styles.gridBtn} 
+          onPress={() => navigation.navigate('AddExpense', { trip: currentTrip, category: 'Diesel' })}
+        >
+            <Fuel size={28} color={COLORS.primary} />
             <Text style={styles.gridText}>Log Diesel</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.gridBtn} onPress={() => Alert.alert("Coming Soon", "Expense Form")}>
-            <FileText size={32} color={COLORS.secondary} />
-            <Text style={styles.gridText}>Other Expense</Text>
+        <TouchableOpacity 
+          style={styles.gridBtn} 
+          onPress={() => navigation.navigate('AddExpense', { trip: currentTrip, category: 'AdBlue' })}
+        >
+            <Droplets size={28} color="#3b82f6" /> 
+            {/* Note: Import Droplets from lucide-react-native at the top! */}
+            <Text style={styles.gridText}>Log AdBlue</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Row 2 */}
+      <View style={styles.grid}>
+        <TouchableOpacity 
+          style={styles.gridBtn} 
+          onPress={() => navigation.navigate('AddExpense', { trip: currentTrip, category: 'Other' })}
+        >
+            <FileText size={28} color={COLORS.secondary} />
+            <Text style={styles.gridText}>Other Exp.</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.gridBtn, {backgroundColor: '#dcfce7'}]} // Light green bg for money
+          onPress={() => navigation.navigate('AddAdvance', { trip: currentTrip })}
+        >
+            <IndianRupee size={28} color="green" />
+            <Text style={[styles.gridText, {color: 'green'}]}>+ Advance</Text>
         </TouchableOpacity>
       </View>
       

@@ -7,6 +7,8 @@ import { supabase } from './lib/supabase';
 
 // --- IMPORT YOUR SCREENS HERE ---
 // Note: Keeping your "./src/screens/" path structure
+import AddAdvanceScreen from './src/screens/AddAdvanceScreen';
+import AddExpenseScreen from './src/screens/AddExpenseScreen';
 import AdminHomeScreen from './src/screens/AdminHomeScreen';
 import DriverHomeScreen from './src/screens/DriverHomeScreen';
 import EndTripScreen from './src/screens/EndTripScreen'; // <--- NEW IMPORT
@@ -94,6 +96,18 @@ export default function App() {
               name="EndTrip" 
               component={EndTripScreen} 
               options={{ headerShown: true, title: 'End Current Trip' }} 
+            />
+
+            <Stack.Screen 
+              name="AddAdvance" 
+              component={AddAdvanceScreen} 
+              options={{ presentation: 'modal', headerShown: false }} 
+            />
+
+            <Stack.Screen 
+              name="AddExpense" 
+              component={AddExpenseScreen} 
+              options={{ presentation: 'modal', headerShown: false }} 
             />
             
           </>
