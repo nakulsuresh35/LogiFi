@@ -1,42 +1,57 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { supabase } from './src/lib/supabase';
+import 'react-native-url-polyfill/auto'; // Required for Supabase on React Native
+import { supabase } from './lib/supabase';
 
-// --- IMPORT ALL SCREENS ---
-import AdminHomeScreen from './src/screens/AdminHomeScreen';
-import FinancialsScreen from './src/screens/FinancialsScreen';
-import InsuranceScreen from './src/screens/InsuranceScreen';
-import LoginScreen from './src/screens/LoginScreen';
-import MonthlyPLScreen from './src/screens/MonthlyPLScreen';
-import TaxScreen from './src/screens/TaxScreen';
+// --- IMPORT YOUR SCREENS HERE ---
+// Make sure these files exist in your 'screens' folder!
+import AdminHomeScreen from './screens/AdminHomeScreen';
+import DriverHomeScreen from './screens/DriverHomeScreen';
+import LoginScreen from './screens/LoginScreen';
+import StartTripScreen from './screens/StartTripScreen';
 
+// Define the Stack
 const Stack = createStackNavigator();
 
 export default function App() {
   const [session, setSession] = useState(null);
+  const [userRole, setUserRole] = useState(null); // 'admin' | 'driver' | null
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Check if user is logged in when app opens
+    // 1. Check initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      if (session) determineRole(session.user.email);
       setLoading(false);
     });
 
-    // 2. Listen for login/logout changes in real-time
+    // 2. Listen for login/logout events
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (session) {
+        determineRole(session.user.email);
+      } else {
+        setUserRole(null); // Clear role on logout
+      }
+      setLoading(false);
     });
-    
-    // Cleanup subscription on unmount
+
     return () => subscription.unsubscribe();
   }, []);
 
-  // Show a spinner while checking if user is logged in
+  // --- THE "HACK" LOGIC ---
+  const determineRole = (email) => {
+    if (email.includes('admin@mainmast.com')) {
+      setUserRole('admin');
+    } else {
+      // Assuming anything else is a truck/driver
+      setUserRole('driver');
+    }
+  };
+
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -46,62 +61,36 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider>
-      <StatusBar style="dark" />
-      <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          
-          {/* AUTH LOGIC: If session exists, show Admin. If not, show Login. */}
-          {session && session.user ? (
-            <>
-              {/* Main Dashboard */}
-              <Stack.Screen name="AdminHome" component={AdminHomeScreen} />
-              
-              {/* Sub Pages (We enable the Header/Back Button for these) */}
-              <Stack.Screen 
-                name="Financials" 
-                component={FinancialsScreen} 
-                options={{ 
-                  headerShown: true, 
-                  title: 'Truck Financials',
-                  headerTintColor: '#1e3a8a'
-                }} 
-              />
-              <Stack.Screen 
-                name="MonthlyPL" 
-                component={MonthlyPLScreen} 
-                options={{ 
-                  headerShown: true, 
-                  title: 'Monthly P&L',
-                  headerTintColor: '#1e3a8a'
-                }} 
-              />
-              <Stack.Screen 
-                name="Insurance" 
-                component={InsuranceScreen} 
-                options={{ 
-                  headerShown: true, 
-                  title: 'Insurance Tracker',
-                  headerTintColor: '#1e3a8a'
-                }} 
-              />
-              <Stack.Screen 
-                name="Tax" 
-                component={TaxScreen} 
-                options={{ 
-                  headerShown: true, 
-                  title: 'Tax Tracker',
-                  headerTintColor: '#1e3a8a'
-                }} 
-              />
-            </>
-          ) : (
-            // Login Screen
-            <Stack.Screen name="Login" component={LoginScreen} />
-          )}
+    <NavigationContainer>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        
+        {/* SCENARIO 1: NOT LOGGED IN */}
+        {!session ? (
+          <Stack.Screen name="Login" component={LoginScreen} />
+        ) : 
+        
+        /* SCENARIO 2: LOGGED IN AS ADMIN */
+        userRole === 'admin' ? (
+          <>
+            <Stack.Screen name="AdminHome" component={AdminHomeScreen} />
+            {/* Add other Admin screens here later (e.g. Financials, Tax) */}
+          </>
+        ) : 
+        
+        /* SCENARIO 3: LOGGED IN AS DRIVER (Truck) */
+        (
+          <>
+            <Stack.Screen name="DriverHome" component={DriverHomeScreen} />
+            <Stack.Screen 
+              name="StartTrip" 
+              component={StartTripScreen} 
+              options={{ headerShown: true, title: 'Start New Trip' }} 
+            />
+            {/* We will add AddExpenseScreen here later */}
+          </>
+        )}
 
-        </Stack.Navigator>
-      </NavigationContainer>
-    </SafeAreaProvider>
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
