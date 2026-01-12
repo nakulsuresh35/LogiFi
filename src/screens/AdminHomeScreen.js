@@ -1,7 +1,6 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { Calendar, FileText, IndianRupee, Shield } from 'lucide-react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { COLORS } from '../constants/colors';
-import { IndianRupee, Calendar, Shield, FileText } from 'lucide-react-native';
 
 const AdminHomeScreen = ({ navigation }) => {
   

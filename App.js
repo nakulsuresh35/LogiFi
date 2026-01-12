@@ -7,10 +7,10 @@ import { supabase } from './lib/supabase';
 
 // --- IMPORT YOUR SCREENS HERE ---
 // Make sure these files exist in your 'screens' folder!
-import AdminHomeScreen from './screens/AdminHomeScreen';
-import DriverHomeScreen from './screens/DriverHomeScreen';
-import LoginScreen from './screens/LoginScreen';
-import StartTripScreen from './screens/StartTripScreen';
+import AdminHomeScreen from './src/screens/AdminHomeScreen';
+import DriverHomeScreen from './src/screens/DriverHomeScreen';
+import LoginScreen from './src/screens/LoginScreen';
+import StartTripScreen from './src/screens/StartTripScreen';
 
 // Define the Stack
 const Stack = createStackNavigator();
