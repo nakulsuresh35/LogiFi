@@ -1,22 +1,55 @@
-import { Truck } from 'lucide-react-native';
-import { useState } from 'react';
-import {
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+import React, { useState } from 'react';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  StyleSheet, 
+  KeyboardAvoidingView, 
+  Platform,
+  Alert
 } from 'react-native';
 import { COLORS } from '../constants/colors';
+import { Truck } from 'lucide-react-native';
+import { supabase } from '../lib/supabase'; // Ensure this path is correct
 
-export default function LoginScreen() {
-  const [email, setEmail] = useState('');
+export default function LoginScreen({ navigation }) { // Receive navigation prop
+  const [plateNumber, setPlateNumber] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    alert('Login clicked! (Logic coming on Day 2)');
+  const handleLogin = async () => {
+    if (!plateNumber || !password) {
+      Alert.alert('Error', 'Please enter Truck Number and Password');
+      return;
+    }
+
+    setLoading(true);
+
+    // 1. Format the input: "KA 01 AB 1234" -> "KA01AB1234"
+    const cleanPlate = plateNumber.replace(/\s/g, '').toUpperCase();
+    
+    // 2. Create the secret email
+    const fakeEmail = `${cleanPlate}@logifi.com`;
+
+    try {
+      // 3. Attempt Login
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: fakeEmail,
+        password: password,
+      });
+
+      if (error) throw error;
+
+      // 4. Success! (The App.js listener will handle navigation usually, 
+      // but for now we can alert or navigate manually if set up)
+      console.log('Logged in user:', data.user);
+      
+    } catch (error) {
+      Alert.alert('Login Failed', error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -25,39 +58,42 @@ export default function LoginScreen() {
       style={styles.container}
     >
       <View style={styles.logoContainer}>
-        {/* The Icon */}
         <View style={styles.iconCircle}>
             <Truck size={40} color={COLORS.surface} />
         </View>
-        
         <Text style={styles.title}>LogiFi</Text>
-        <Text style={styles.subtitle}>Logistics Management System</Text>
+        <Text style={styles.subtitle}>Fleet Management System</Text>
       </View>
 
       <View style={styles.formContainer}>
-        <Text style={styles.label}>Email Address</Text>
+        <Text style={styles.label}>Truck Number</Text>
         <TextInput
           style={styles.input}
-          placeholder="driver@mainmast.com"
+          placeholder="KA01AB1234"
           placeholderTextColor={COLORS.textLight}
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
+          value={plateNumber}
+          onChangeText={setPlateNumber}
+          autoCapitalize="characters"
         />
 
         <Text style={styles.label}>Password</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter your password"
+          placeholder="Enter Password"
           placeholderTextColor={COLORS.textLight}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
         />
 
-        <TouchableOpacity style={styles.button} onPress={handleLogin}>
-          <Text style={styles.buttonText}>Login to Dashboard</Text>
+        <TouchableOpacity 
+          style={[styles.button, loading && { opacity: 0.7 }]} 
+          onPress={handleLogin}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>
+            {loading ? 'Verifying...' : 'Login to Truck'}
+          </Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -83,11 +119,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
-    elevation: 5, // Shadow for Android
-    shadowColor: COLORS.primary, // Shadow for iOS
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    elevation: 5,
   },
   title: {
     fontSize: 32,
@@ -104,9 +136,6 @@ const styles = StyleSheet.create({
     padding: 24,
     borderRadius: 16,
     elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
   },
   label: {
     fontSize: 14,
@@ -125,7 +154,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   button: {
-    backgroundColor: COLORS.secondary, // Dark Red
+    backgroundColor: COLORS.secondary,
     padding: 18,
     borderRadius: 12,
     alignItems: 'center',
