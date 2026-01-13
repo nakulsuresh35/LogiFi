@@ -1,25 +1,21 @@
 import { useFocusEffect } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient'; // <--- NEW LIBRARY
+import { Droplets, FileText, Fuel, IndianRupee, LogOut, MapPin, Navigation, Play } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import {
-  ActivityIndicator,
-  ScrollView,
+  ActivityIndicator, ScrollView, StatusBar,
   StyleSheet,
-  Text,
-  TouchableOpacity,
+  Text, TouchableOpacity,
   View
 } from 'react-native';
-import { COLORS } from '../constants/colors'; // Assumed existing
+import { COLORS } from '../constants/colors';
 import { supabase } from '../lib/supabase';
-import { Play, LogOut, MapPin, Fuel, FileText, Droplets, IndianRupee } from 'lucide-react-native';
-// Added MapPin and Fuel for the active dashboard visualization
-
 
 export default function DriverHomeScreen({ navigation }) {
   const [truckName, setTruckName] = useState('Loading...');
-  const [currentTrip, setCurrentTrip] = useState(null); // Stores active trip data
+  const [currentTrip, setCurrentTrip] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // useFocusEffect runs every time this screen becomes visible
   useFocusEffect(
     useCallback(() => {
       fetchDashboardData();
@@ -29,14 +25,12 @@ export default function DriverHomeScreen({ navigation }) {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      // 1. Get User
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       const plate = user.email.split('@')[0].toUpperCase();
       setTruckName(plate);
 
-      // 2. Get Vehicle ID
       const { data: vehicle } = await supabase
         .from('vehicles')
         .select('id')
@@ -44,18 +38,18 @@ export default function DriverHomeScreen({ navigation }) {
         .single();
 
       if (vehicle) {
-        // 3. Check for ACTIVE trip
         const { data: trip } = await supabase
           .from('trips')
           .select('*')
-          .eq('vehicle_id', vehicle.id)
           .eq('status', 'active')
-          .maybeSingle(); // Returns null if no active trip
+          .order('created_at', { ascending: false }) // Get the newest trip
+          .limit(1)                                  // Force only 1 result
+          .maybeSingle();
 
         setCurrentTrip(trip);
       }
     } catch (error) {
-      console.log('Error fetching dashboard:', error);
+      console.log(error);
     } finally {
       setLoading(false);
     }
@@ -65,108 +59,148 @@ export default function DriverHomeScreen({ navigation }) {
     await supabase.auth.signOut();
   };
 
-  // --- RENDER HELPERS ---
-
+  // --- 1. THE STUNNING START BUTTON ---
   const renderStartTripView = () => (
-    <View style={styles.actionContainer}>
-      <View style={styles.statusCard}>
-        <Text style={styles.statusTitle}>Current Status</Text>
-        <Text style={styles.statusText}>IDLE (No Active Trip)</Text>
+    <View style={styles.centerContent}>
+      <View style={styles.idleContainer}>
+        <View style={styles.idleIconBg}>
+           <Navigation size={60} color={COLORS.primary} />
+        </View>
+        <Text style={styles.idleTitle}>No Active Trip</Text>
+        <Text style={styles.idleSubtitle}>Ready to hit the road?</Text>
       </View>
 
       <TouchableOpacity 
-        style={styles.startBtn} 
-        onPress={() => navigation.navigate('StartTrip')} // <--- NAVIGATION LINKED HERE
+        activeOpacity={0.8}
+        onPress={() => navigation.navigate('StartTrip')}
+        style={styles.shadowProp}
       >
-        <Play size={40} color="white" fill="white" />
-        <Text style={styles.startBtnText}>START NEW TRIP</Text>
+        <LinearGradient
+          colors={['#1e3a8a', '#3b82f6']} // Navy to Blue Gradient
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.startBtnGradient}
+        >
+          <Play size={32} color="white" fill="white" style={{ marginRight: 10 }} />
+          <Text style={styles.startBtnText}>START NEW TRIP</Text>
+        </LinearGradient>
       </TouchableOpacity>
     </View>
   );
 
+  // --- 2. THE STUNNING DASHBOARD ---
   const renderActiveTripView = () => (
-    <ScrollView contentContainerStyle={styles.activeContainer}>
-      {/* ... Trip Info Card Code ... */}
-      <View style={styles.activeCard}>
-        <View style={styles.activeHeader}>
-          <Text style={styles.activeLabel}>ONGOING TRIP</Text>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>IN TRANSIT</Text>
+    <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      
+      {/* A. The "Hero" Trip Card */}
+      <View style={styles.shadowProp}>
+        <LinearGradient
+          colors={['#1e3a8a', '#172554']} // Dark Deep Blue Gradient
+          style={styles.heroCard}
+        >
+          {/* Status Badge */}
+          <View style={styles.statusBadge}>
+            <View style={styles.pulsingDot} />
+            <Text style={styles.statusText}>LIVE TRACKING</Text>
           </View>
-        </View>
-        
-        <View style={styles.routeContainer}>
+
+          {/* Route Visualizer */}
+          <View style={styles.routeRow}>
             <View>
-                <Text style={styles.routeLabel}>FROM</Text>
-                <Text style={styles.routeValue}>{currentTrip.from_location}</Text>
+                <Text style={styles.locLabel}>FROM</Text>
+                <Text style={styles.locValue}>{currentTrip.from_location}</Text>
             </View>
-            <Text style={styles.arrow}>→</Text>
-            <View>
-                <Text style={styles.routeLabel}>TO</Text>
-                <Text style={styles.routeValue}>{currentTrip.to_location}</Text>
+            
+            {/* The Visual Line Connector */}
+            <View style={styles.connector}>
+                <View style={styles.dot} />
+                <View style={styles.line} />
+                <Navigation size={20} color="#60a5fa" style={{transform: [{ rotate: '90deg' }]}} />
+                <View style={styles.line} />
+                <View style={styles.dot} />
             </View>
-        </View>
 
-        <View style={styles.metaRow}>
-            <View style={styles.metaItem}>
-                <MapPin size={16} color={COLORS.textLight} />
-                <Text style={styles.metaText}>Start: {currentTrip.start_km} km</Text>
+            <View style={{alignItems: 'flex-end'}}>
+                <Text style={styles.locLabel}>TO</Text>
+                <Text style={styles.locValue}>{currentTrip.to_location}</Text>
             </View>
-            <View style={styles.metaItem}>
-                <Text style={styles.metaText}>Adv: ₹{currentTrip.advance_amount}</Text>
+          </View>
+
+          {/* Info Stats */}
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+                <MapPin size={18} color="#93c5fd" />
+                <Text style={styles.statLabel}>Start KM</Text>
+                <Text style={styles.statValue}>{currentTrip.start_km}</Text>
             </View>
-        </View>
+            <View style={styles.verticalDivider} />
+            <View style={styles.statItem}>
+                <IndianRupee size={18} color="#86efac" />
+                <Text style={styles.statLabel}>Total Adv</Text>
+                <Text style={styles.statValue}>₹{currentTrip.advance_amount}</Text>
+            </View>
+          </View>
+        </LinearGradient>
       </View>
 
-      {/* 4-BUTTON ACTION GRID */}
-      <Text style={styles.sectionTitle}>Quick Actions</Text>
+      {/* B. Action Grid */}
+      <Text style={styles.sectionHeader}>Quick Actions</Text>
       
-      {/* Row 1 */}
-      <View style={styles.grid}>
+      <View style={styles.gridContainer}>
         <TouchableOpacity 
-          style={styles.gridBtn} 
-          onPress={() => navigation.navigate('AddExpense', { trip: currentTrip, category: 'Diesel' })}
+            style={styles.actionCard} 
+            onPress={() => navigation.navigate('AddExpense', { trip: currentTrip, category: 'Diesel' })}
         >
-            <Fuel size={28} color={COLORS.primary} />
-            <Text style={styles.gridText}>Log Diesel</Text>
+            <View style={[styles.iconBox, { backgroundColor: '#eff6ff' }]}>
+                <Fuel size={28} color={COLORS.primary} />
+            </View>
+            <Text style={styles.actionText}>Diesel</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={styles.gridBtn} 
-          onPress={() => navigation.navigate('AddExpense', { trip: currentTrip, category: 'AdBlue' })}
+            style={styles.actionCard} 
+            onPress={() => navigation.navigate('AddExpense', { trip: currentTrip, category: 'AdBlue' })}
         >
-            <Droplets size={28} color="#3b82f6" /> 
-            {/* Note: Import Droplets from lucide-react-native at the top! */}
-            <Text style={styles.gridText}>Log AdBlue</Text>
+            <View style={[styles.iconBox, { backgroundColor: '#eff6ff' }]}>
+                <Droplets size={28} color="#3b82f6" />
+            </View>
+            <Text style={styles.actionText}>AdBlue</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+            style={styles.actionCard} 
+            onPress={() => navigation.navigate('AddExpense', { trip: currentTrip, category: 'Other' })}
+        >
+            <View style={[styles.iconBox, { backgroundColor: '#fff7ed' }]}>
+                <FileText size={28} color="#f97316" />
+            </View>
+            <Text style={styles.actionText}>Expenses</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+            style={styles.actionCard} 
+            onPress={() => navigation.navigate('AddAdvance', { trip: currentTrip })}
+        >
+            <View style={[styles.iconBox, { backgroundColor: '#f0fdf4' }]}>
+                <IndianRupee size={28} color="#16a34a" />
+            </View>
+            <Text style={styles.actionText}>+ Advance</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Row 2 */}
-      <View style={styles.grid}>
-        <TouchableOpacity 
-          style={styles.gridBtn} 
-          onPress={() => navigation.navigate('AddExpense', { trip: currentTrip, category: 'Other' })}
-        >
-            <FileText size={28} color={COLORS.secondary} />
-            <Text style={styles.gridText}>Other Exp.</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.gridBtn, {backgroundColor: '#dcfce7'}]} // Light green bg for money
-          onPress={() => navigation.navigate('AddAdvance', { trip: currentTrip })}
-        >
-            <IndianRupee size={28} color="green" />
-            <Text style={[styles.gridText, {color: 'green'}]}>+ Advance</Text>
-        </TouchableOpacity>
-      </View>
-      
-      {/* 👇 THIS IS THE BUTTON WE UPDATED 👇 */}
+      {/* C. End Trip Button (Danger Zone) */}
       <TouchableOpacity 
-        style={styles.endBtn} 
+        style={styles.endButtonContainer}
         onPress={() => navigation.navigate('EndTrip', { trip: currentTrip })}
       >
-        <Text style={styles.endBtnText}>END TRIP</Text>
+        <LinearGradient
+            colors={['#991b1b', '#dc2626']} // Dark Red Gradient
+            style={styles.endButtonGradient}
+        >
+            <Text style={styles.endButtonText}>END TRIP & FINALIZE</Text>
+        </LinearGradient>
       </TouchableOpacity>
+
     </ScrollView>
   );
 
@@ -180,72 +214,88 @@ export default function DriverHomeScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Top Bar (Always Visible) */}
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+      
+      {/* Header */}
       <View style={styles.header}>
         <View>
-            <Text style={styles.greeting}>Hello,</Text>
+            <Text style={styles.greeting}>Welcome back,</Text>
             <Text style={styles.truckId}>{truckName}</Text>
         </View>
         <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-            <LogOut size={24} color={COLORS.secondary} />
+            <LogOut size={22} color={COLORS.secondary} />
         </TouchableOpacity>
       </View>
 
-      {/* Dynamic Content Area */}
       {currentTrip ? renderActiveTripView() : renderStartTripView()}
-
-      {!currentTrip && <Text style={styles.footerText}>Main Mast Logistics Driver App v1.0</Text>}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background, padding: 24 },
-  header: { marginTop: 40, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  greeting: { fontSize: 16, color: COLORS.textLight },
-  truckId: { fontSize: 28, fontWeight: 'bold', color: COLORS.primary },
-  logoutBtn: { padding: 8, backgroundColor: '#fee2e2', borderRadius: 50 },
-  
-  // IDLE STATE STYLES
-  actionContainer: { flex: 1, justifyContent: 'center' },
-  statusCard: { backgroundColor: 'white', padding: 20, borderRadius: 12, marginBottom: 40, alignItems: 'center', elevation: 2 },
-  statusTitle: { color: COLORS.textLight, fontSize: 14, textTransform: 'uppercase' },
-  statusText: { fontSize: 20, fontWeight: 'bold', color: COLORS.text, marginTop: 5 },
-  startBtn: {
-    backgroundColor: COLORS.success,
-    height: 180,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: COLORS.success,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
+  container: { flex: 1, backgroundColor: '#F3F4F6' },
+  header: { 
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', 
+    paddingHorizontal: 24, paddingTop: 60, paddingBottom: 20,
+    backgroundColor: 'white', borderBottomLeftRadius: 30, borderBottomRightRadius: 30,
+    elevation: 5, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, zIndex: 10
   },
-  startBtnText: { color: 'white', fontSize: 24, fontWeight: 'bold', marginTop: 10 },
-  footerText: { textAlign: 'center', color: COLORS.textLight, marginTop: 'auto' },
+  greeting: { fontSize: 14, color: '#64748b', fontWeight: '600' },
+  truckId: { fontSize: 26, fontWeight: '800', color: '#0f172a', letterSpacing: 0.5 },
+  logoutBtn: { padding: 10, backgroundColor: '#fee2e2', borderRadius: 12 },
 
-  // ACTIVE STATE STYLES
-  activeContainer: { paddingBottom: 20 },
-  activeCard: { backgroundColor: 'white', padding: 20, borderRadius: 16, elevation: 4, marginBottom: 30, borderLeftWidth: 5, borderLeftColor: COLORS.success },
-  activeHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
-  activeLabel: { fontWeight: 'bold', color: COLORS.textLight, letterSpacing: 1 },
-  badge: { backgroundColor: '#dcfce7', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  badgeText: { color: 'green', fontWeight: 'bold', fontSize: 12 },
-  routeContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
-  routeLabel: { fontSize: 12, color: COLORS.textLight },
-  routeValue: { fontSize: 18, fontWeight: 'bold', color: COLORS.primary },
-  arrow: { fontSize: 24, color: COLORS.textLight, marginHorizontal: 10 },
-  metaRow: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#f0f0f0', paddingTop: 15 },
-  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  metaText: { color: COLORS.text, fontWeight: '500' },
+  // IDLE STATE
+  centerContent: { flex: 1, justifyContent: 'center', padding: 24 },
+  idleContainer: { alignItems: 'center', marginBottom: 40 },
+  idleIconBg: { padding: 25, backgroundColor: '#dbeafe', borderRadius: 100, marginBottom: 20 },
+  idleTitle: { fontSize: 24, fontWeight: 'bold', color: '#1e293b' },
+  idleSubtitle: { fontSize: 16, color: '#64748b', marginTop: 5 },
+  startBtnGradient: { 
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', 
+    paddingVertical: 20, borderRadius: 20 
+  },
+  startBtnText: { color: 'white', fontSize: 18, fontWeight: 'bold', letterSpacing: 1 },
+
+  // ACTIVE STATE
+  scrollContent: { padding: 24, paddingBottom: 50 },
+  shadowProp: { 
+    elevation: 10, shadowColor: '#1e3a8a', shadowOpacity: 0.3, shadowRadius: 15, shadowOffset: {width: 0, height: 8} 
+  },
+  heroCard: { borderRadius: 24, padding: 24, marginBottom: 30 },
   
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.text, marginBottom: 15 },
-  grid: { flexDirection: 'row', gap: 15, marginBottom: 30 },
-  gridBtn: { flex: 1, backgroundColor: 'white', padding: 20, borderRadius: 16, alignItems: 'center', elevation: 2, gap: 10 },
-  gridText: { fontWeight: '600', color: COLORS.text },
+  statusBadge: { 
+    flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, marginBottom: 20 
+  },
+  pulsingDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#4ade80', marginRight: 8 },
+  statusText: { color: '#4ade80', fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
+
+  routeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25 },
+  locLabel: { color: '#94a3b8', fontSize: 12, fontWeight: '700', marginBottom: 4 },
+  locValue: { color: 'white', fontSize: 20, fontWeight: 'bold' },
   
-  endBtn: { backgroundColor: COLORS.secondary, padding: 18, borderRadius: 12, alignItems: 'center' },
-  endBtnText: { color: 'white', fontWeight: 'bold', fontSize: 16 }
+  connector: { flexDirection: 'row', alignItems: 'center', flex: 1, justifyContent: 'center', marginHorizontal: 10 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#60a5fa' },
+  line: { flex: 1, height: 2, backgroundColor: '#60a5fa', marginHorizontal: 4, opacity: 0.5 },
+
+  statsRow: { flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: 16, padding: 15 },
+  statItem: { flex: 1, alignItems: 'center', gap: 5 },
+  statLabel: { color: '#94a3b8', fontSize: 12, fontWeight: '600' },
+  statValue: { color: 'white', fontSize: 16, fontWeight: 'bold' },
+  verticalDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.2)' },
+
+  // ACTION GRID
+  sectionHeader: { fontSize: 18, fontWeight: 'bold', color: '#1e293b', marginBottom: 15 },
+  gridContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 15, marginBottom: 30 },
+  actionCard: { 
+    width: '47%', backgroundColor: 'white', padding: 16, borderRadius: 20, 
+    alignItems: 'center', justifyContent: 'center',
+    elevation: 2, shadowColor: '#000', shadowOpacity: 0.05 
+  },
+  iconBox: { padding: 12, borderRadius: 14, marginBottom: 10 },
+  actionText: { fontWeight: '700', color: '#334155' },
+
+  endButtonContainer: { borderRadius: 20, overflow: 'hidden', elevation: 4 },
+  endButtonGradient: { paddingVertical: 18, alignItems: 'center' },
+  endButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16, letterSpacing: 1 }
 });
