@@ -1,33 +1,36 @@
-import { CheckCircle } from 'lucide-react-native';
+import { CheckCircle, Gauge, IndianRupee } from 'lucide-react-native';
 import { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView, Platform,
-    StyleSheet,
-    Text, TextInput, TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView, Platform, ScrollView,
+  StyleSheet,
+  Text, TextInput, TouchableOpacity,
+  View
 } from 'react-native';
 import { COLORS } from '../constants/colors';
 import { supabase } from '../lib/supabase';
 
 export default function EndTripScreen({ route, navigation }) {
-  // We passed the entire trip object from the dashboard
   const { trip } = route.params; 
   
+  // State for Inputs
   const [endKm, setEndKm] = useState('');
+  const [freight, setFreight] = useState(''); // Total Revenue
+  const [bata, setBata] = useState('');       // Driver Wage
+  
   const [loading, setLoading] = useState(false);
 
   const handleEndTrip = async () => {
-    if (!endKm) {
-      Alert.alert("Missing Info", "Please enter the final odometer reading.");
+    // 1. Validation
+    if (!endKm || !freight || !bata) {
+      Alert.alert("Missing Info", "Please fill in End KM, Freight, and Bata.");
       return;
     }
 
     const finalKm = parseFloat(endKm);
     const startKm = parseFloat(trip.start_km);
 
-    // VALIDATION: You can't end a trip with less KM than you started!
     if (finalKm <= startKm) {
       Alert.alert("Error", `End KM must be greater than Start KM (${startKm})`);
       return;
@@ -36,20 +39,20 @@ export default function EndTripScreen({ route, navigation }) {
     setLoading(true);
 
     try {
-      // Update the trip in Supabase
+      // 2. Update Supabase (CORRECTED COLUMN NAMES)
       const { error } = await supabase
         .from('trips')
         .update({ 
           end_km: finalKm,
-          status: 'completed' // This changes the dashboard back to "Start Trip" mode
+          total_freight: parseFloat(freight), // <--- MATCHES DB 'total_freight'
+          driver_bata: parseFloat(bata),      // <--- MATCHES DB 'driver_bata'
+          status: 'completed' 
         })
         .eq('id', trip.id);
 
       if (error) throw error;
 
-      Alert.alert("Trip Completed", "Great job! Drive details saved.");
-      
-      // Navigate back to Home, which will refresh and show the "Start Trip" button again
+      Alert.alert("Success", "Trip Closed! Financials saved.");
       navigation.navigate('DriverHome'); 
 
     } catch (error) {
@@ -60,64 +63,110 @@ export default function EndTripScreen({ route, navigation }) {
   };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
-      <View style={styles.header}>
-        <CheckCircle size={60} color={COLORS.success} />
-        <Text style={styles.title}>End Trip</Text>
-        <Text style={styles.subtitle}>{trip.from_location} ➝ {trip.to_location}</Text>
-      </View>
-
-      <View style={styles.card}>
-        <View style={styles.infoRow}>
-            <Text style={styles.label}>Start Odometer:</Text>
-            <Text style={styles.value}>{trip.start_km} km</Text>
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{flex:1}}>
+      <ScrollView contentContainerStyle={styles.container}>
+        
+        <View style={styles.header}>
+          <CheckCircle size={50} color={COLORS.success} />
+          <Text style={styles.title}>Trip Summary</Text>
+          <Text style={styles.subtitle}>{trip.from_location} ➝ {trip.to_location}</Text>
         </View>
 
-        <Text style={[styles.label, {marginTop: 20}]}>End Odometer Reading</Text>
-        <TextInput 
-          style={styles.input} 
-          placeholder="e.g. 45500" 
-          keyboardType="numeric"
-          value={endKm}
-          onChangeText={setEndKm}
-          autoFocus={true}
-        />
+        <View style={styles.form}>
+          
+          {/* SECTION 1: ODOMETER */}
+          <View style={styles.sectionHeader}>
+            <Gauge size={20} color={COLORS.primary} />
+            <Text style={styles.sectionTitle}>Vehicle Details</Text>
+          </View>
+          
+          <View style={styles.row}>
+             <View style={{flex: 1}}>
+                <Text style={styles.label}>Start KM</Text>
+                <Text style={styles.staticValue}>{trip.start_km}</Text>
+             </View>
+             <View style={{flex: 1}}>
+                <Text style={styles.label}>End KM</Text>
+                <TextInput 
+                  style={styles.input} 
+                  placeholder="e.g. 45500" 
+                  keyboardType="numeric"
+                  value={endKm}
+                  onChangeText={setEndKm}
+                />
+             </View>
+          </View>
 
-        <TouchableOpacity 
-          style={styles.submitBtn} 
-          onPress={handleEndTrip}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <Text style={styles.btnText}>CONFIRM & FINISH</Text>
-          )}
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.cancelBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.cancelText}>CANCEL</Text>
-        </TouchableOpacity>
-      </View>
+          <View style={styles.divider} />
+
+          {/* SECTION 2: FINANCIALS */}
+          <View style={styles.sectionHeader}>
+            <IndianRupee size={20} color="green" />
+            <Text style={styles.sectionTitle}>Trip Financials</Text>
+          </View>
+
+          <Text style={styles.label}>Total Freight / Revenue (₹)</Text>
+          <TextInput 
+            style={styles.input} 
+            placeholder="e.g. 25000" 
+            keyboardType="numeric"
+            value={freight}
+            onChangeText={setFreight}
+          />
+
+          <Text style={styles.label}>Driver Bata / Wage (₹)</Text>
+          <TextInput 
+            style={styles.input} 
+            placeholder="e.g. 1500" 
+            keyboardType="numeric"
+            value={bata}
+            onChangeText={setBata}
+          />
+
+          {/* SUBMIT BUTTON */}
+          <TouchableOpacity 
+            style={styles.submitBtn} 
+            onPress={handleEndTrip}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={styles.btnText}>CLOSE TRIP</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.cancelBtn} onPress={() => navigation.goBack()}>
+            <Text style={styles.cancelText}>CANCEL</Text>
+          </TouchableOpacity>
+
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background, padding: 24, justifyContent: 'center' },
-  header: { alignItems: 'center', marginBottom: 30 },
-  title: { fontSize: 32, fontWeight: 'bold', color: COLORS.text, marginTop: 10 },
-  subtitle: { fontSize: 18, color: COLORS.textLight, marginTop: 5 },
+  container: { flexGrow: 1, backgroundColor: COLORS.background, padding: 20 },
+  header: { alignItems: 'center', marginBottom: 20, marginTop: 20 },
+  title: { fontSize: 28, fontWeight: 'bold', color: COLORS.text, marginTop: 10 },
+  subtitle: { fontSize: 16, color: COLORS.textLight },
   
-  card: { backgroundColor: 'white', padding: 24, borderRadius: 16, elevation: 4 },
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  value: { fontWeight: 'bold', fontSize: 18, color: COLORS.text },
+  form: { backgroundColor: 'white', padding: 20, borderRadius: 16, elevation: 3 },
   
-  label: { fontWeight: '600', marginBottom: 8, color: COLORS.textLight },
-  input: { backgroundColor: '#F3F4F6', padding: 16, borderRadius: 12, fontSize: 18, marginBottom: 20 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 15, gap: 8 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.text },
   
-  submitBtn: { backgroundColor: COLORS.success, padding: 18, borderRadius: 12, alignItems: 'center', marginBottom: 10 },
+  row: { flexDirection: 'row', gap: 15 },
+  label: { fontWeight: '600', marginBottom: 8, color: COLORS.textLight, fontSize: 14 },
+  staticValue: { fontSize: 18, fontWeight: 'bold', color: COLORS.text, marginTop: 10 },
+  
+  input: { backgroundColor: '#F3F4F6', padding: 14, borderRadius: 10, fontSize: 16, marginBottom: 20, borderWidth: 1, borderColor: '#eee' },
+  
+  divider: { height: 1, backgroundColor: '#eee', marginVertical: 10 },
+  
+  submitBtn: { backgroundColor: COLORS.success, padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 10 },
   btnText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
-  cancelBtn: { padding: 15, alignItems: 'center' },
+  cancelBtn: { padding: 15, alignItems: 'center', marginTop: 5 },
   cancelText: { color: COLORS.textLight, fontWeight: 'bold' }
 });
