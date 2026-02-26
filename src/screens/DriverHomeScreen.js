@@ -1,7 +1,8 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient'; // <--- NEW LIBRARY
-import { Droplets, FileText, Fuel, IndianRupee, LogOut, MapPin, Navigation, Play } from 'lucide-react-native';
-import { useCallback, useState } from 'react';
+import { Audio } from 'expo-av'; // <--- NEW: Audio Library
+import { LinearGradient } from 'expo-linear-gradient';
+import { AlertTriangle, Droplets, FileText, Fuel, IndianRupee, LogOut, MapPin, Navigation, Play, XCircle } from 'lucide-react-native';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator, ScrollView, StatusBar,
   StyleSheet,
@@ -15,6 +16,10 @@ export default function DriverHomeScreen({ navigation }) {
   const [truckName, setTruckName] = useState('Loading...');
   const [currentTrip, setCurrentTrip] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  // --- NEW: ALARM STATES ---
+  const [alertActive, setAlertActive] = useState(false);
+  const [soundObject, setSoundObject] = useState(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -42,8 +47,8 @@ export default function DriverHomeScreen({ navigation }) {
           .from('trips')
           .select('*')
           .eq('status', 'active')
-          .order('created_at', { ascending: false }) // Get the newest trip
-          .limit(1)                                  // Force only 1 result
+          .order('created_at', { ascending: false }) 
+          .limit(1)                                  
           .maybeSingle();
 
         setCurrentTrip(trip);
@@ -53,6 +58,64 @@ export default function DriverHomeScreen({ navigation }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  // --- NEW: SUPABASE REALTIME ALARM LISTENER ---
+  useEffect(() => {
+    // Don't start listening until we know the truck's plate number
+    if (truckName === 'Loading...') return;
+
+    let soundInstance = null;
+
+    const playLoudAlarm = async () => {
+      setAlertActive(true);
+      try {
+        // Ensure you have a sound file in your assets folder!
+        // Alternatively, you can use a remote URL: uri: 'https://example.com/siren.mp3'
+        const { sound } = await Audio.Sound.createAsync(
+           require('../assets/police_siren.wav') 
+        );
+        soundInstance = sound;
+        setSoundObject(sound);
+        await sound.setIsLoopingAsync(true); // Loop until dismissed
+        await sound.playAsync();
+      } catch (error) {
+        console.log("Error playing sound", error);
+      }
+    };
+
+    const alertSubscription = supabase
+      .channel('driver-alerts')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'driver_alerts',
+        filter: `vehicle_id=eq.${truckName}` // Listen only for THIS truck
+      }, (payload) => {
+        console.log('CRITICAL ALERT RECEIVED FROM CLOUD!', payload);
+        if (payload.new.alert_type === 'drowsiness_critical') {
+           playLoudAlarm();
+        }
+      })
+      .subscribe();
+
+    // Cleanup when leaving screen
+    return () => {
+      supabase.removeChannel(alertSubscription);
+      if (soundInstance) {
+        soundInstance.unloadAsync();
+      }
+    };
+  }, [truckName]);
+
+  // --- NEW: DISMISS ALARM HANDLER ---
+  const handleDismissAlarm = async () => {
+    if (soundObject) {
+      await soundObject.stopAsync();
+      await soundObject.unloadAsync();
+      setSoundObject(null);
+    }
+    setAlertActive(false);
   };
 
   const handleLogout = async () => {
@@ -76,7 +139,7 @@ export default function DriverHomeScreen({ navigation }) {
         style={styles.shadowProp}
       >
         <LinearGradient
-          colors={['#1e3a8a', '#3b82f6']} // Navy to Blue Gradient
+          colors={['#1e3a8a', '#3b82f6']} 
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.startBtnGradient}
@@ -95,23 +158,20 @@ export default function DriverHomeScreen({ navigation }) {
       {/* A. The "Hero" Trip Card */}
       <View style={styles.shadowProp}>
         <LinearGradient
-          colors={['#1e3a8a', '#172554']} // Dark Deep Blue Gradient
+          colors={['#1e3a8a', '#172554']} 
           style={styles.heroCard}
         >
-          {/* Status Badge */}
           <View style={styles.statusBadge}>
             <View style={styles.pulsingDot} />
             <Text style={styles.statusText}>LIVE TRACKING</Text>
           </View>
 
-          {/* Route Visualizer */}
           <View style={styles.routeRow}>
             <View>
                 <Text style={styles.locLabel}>FROM</Text>
                 <Text style={styles.locValue}>{currentTrip.from_location}</Text>
             </View>
             
-            {/* The Visual Line Connector */}
             <View style={styles.connector}>
                 <View style={styles.dot} />
                 <View style={styles.line} />
@@ -126,7 +186,6 @@ export default function DriverHomeScreen({ navigation }) {
             </View>
           </View>
 
-          {/* Info Stats */}
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
                 <MapPin size={18} color="#93c5fd" />
@@ -188,13 +247,13 @@ export default function DriverHomeScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* C. End Trip Button (Danger Zone) */}
+      {/* C. End Trip Button */}
       <TouchableOpacity 
         style={styles.endButtonContainer}
         onPress={() => navigation.navigate('EndTrip', { trip: currentTrip })}
       >
         <LinearGradient
-            colors={['#991b1b', '#dc2626']} // Dark Red Gradient
+            colors={['#991b1b', '#dc2626']} 
             style={styles.endButtonGradient}
         >
             <Text style={styles.endButtonText}>END TRIP & FINALIZE</Text>
@@ -227,6 +286,22 @@ export default function DriverHomeScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
+      {/* --- NEW: CRITICAL ALERT BANNER --- */}
+      {alertActive && (
+        <View style={styles.alertBanner}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+             <AlertTriangle size={28} color="white" />
+             <View style={{ marginLeft: 15 }}>
+                <Text style={styles.alertTitle}>WAKE UP ALARM</Text>
+                <Text style={styles.alertSub}>Drowsiness detected!</Text>
+             </View>
+          </View>
+          <TouchableOpacity onPress={handleDismissAlarm} style={styles.dismissBtn}>
+             <XCircle size={32} color="white" />
+          </TouchableOpacity>
+        </View>
+      )}
+
       {currentTrip ? renderActiveTripView() : renderStartTripView()}
     </View>
   );
@@ -243,6 +318,25 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 14, color: '#64748b', fontWeight: '600' },
   truckId: { fontSize: 26, fontWeight: '800', color: '#0f172a', letterSpacing: 0.5 },
   logoutBtn: { padding: 10, backgroundColor: '#fee2e2', borderRadius: 12 },
+
+  // --- NEW: ALARM STYLES ---
+  alertBanner: {
+    backgroundColor: '#dc2626',
+    margin: 20,
+    borderRadius: 16,
+    padding: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    elevation: 10,
+    shadowColor: '#dc2626',
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  alertTitle: { color: 'white', fontSize: 18, fontWeight: 'bold' },
+  alertSub: { color: '#fca5a5', fontSize: 14, marginTop: 2 },
+  dismissBtn: { padding: 5 },
 
   // IDLE STATE
   centerContent: { flex: 1, justifyContent: 'center', padding: 24 },
