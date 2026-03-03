@@ -62,7 +62,8 @@ export default function DriverHomeScreen({ navigation }) {
 
   // --- NEW: SUPABASE REALTIME ALARM LISTENER ---
   useEffect(() => {
-    // Don't start listening until we know the truck's plate number
+    console.log("STATE CHECK: truckName is currently ->", truckName);
+    
     if (truckName === 'Loading...') return;
 
     let soundInstance = null;
@@ -70,18 +71,26 @@ export default function DriverHomeScreen({ navigation }) {
     const playLoudAlarm = async () => {
       setAlertActive(true);
       try {
-        // Ensure you have a sound file in your assets folder!
-        // Alternatively, you can use a remote URL: uri: 'https://example.com/siren.mp3'
         const { sound } = await Audio.Sound.createAsync(
-           require('../assets/police_siren.wav') 
+           { uri: 'https://actions.google.com/sounds/v1/alarms/spaceship_alarm.ogg' } 
         );
         soundInstance = sound;
-        setSoundObject(sound);
-        await sound.setIsLoopingAsync(true); // Loop until dismissed
+        await sound.setIsLoopingAsync(true);
         await sound.playAsync();
       } catch (error) {
         console.log("Error playing sound", error);
       }
+    };
+
+    // NEW FUNCTION: Kills the alarm
+    const stopLoudAlarm = async () => {
+      if (soundInstance) {
+        console.log("Stopping phone alarm automatically!");
+        await soundInstance.stopAsync();
+        await soundInstance.unloadAsync();
+        soundInstance = null;
+      }
+      setAlertActive(false);
     };
 
     const alertSubscription = supabase
@@ -90,16 +99,23 @@ export default function DriverHomeScreen({ navigation }) {
         event: 'INSERT',
         schema: 'public',
         table: 'driver_alerts',
-        filter: `vehicle_id=eq.${truckName}` // Listen only for THIS truck
+        filter: `vehicle_id=eq.${truckName.toLowerCase().trim()}` 
       }, (payload) => {
-        console.log('CRITICAL ALERT RECEIVED FROM CLOUD!', payload);
+        
+        console.log('CLOUD UPDATE:', payload.new.alert_type);
+        
+        // IF ASLEEP: Play alarm
         if (payload.new.alert_type === 'drowsiness_critical') {
            playLoudAlarm();
+        } 
+        // IF AWAKE: Stop alarm
+        else if (payload.new.alert_type === 'drowsiness_resolved') {
+           stopLoudAlarm();
         }
+        
       })
       .subscribe();
 
-    // Cleanup when leaving screen
     return () => {
       supabase.removeChannel(alertSubscription);
       if (soundInstance) {
