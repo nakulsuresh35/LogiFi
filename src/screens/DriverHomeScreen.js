@@ -73,7 +73,7 @@ export default function DriverHomeScreen({ navigation }) {
         // Ensure you have a sound file in your assets folder!
         // Alternatively, you can use a remote URL: uri: 'https://example.com/siren.mp3'
         const { sound } = await Audio.Sound.createAsync(
-           require('../assets/police_siren.wav') 
+           require('../../assets/audio/police_siren.wav') 
         );
         soundInstance = sound;
         setSoundObject(sound);
