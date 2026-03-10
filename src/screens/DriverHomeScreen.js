@@ -46,6 +46,7 @@ export default function DriverHomeScreen({ navigation }) {
         const { data: trip } = await supabase
           .from('trips')
           .select('*')
+          .eq('vehicle_id', vehicle.id) // <-- NEW: Locks the trip to THIS specific truck!
           .eq('status', 'active')
           .order('created_at', { ascending: false }) 
           .limit(1)                                  
@@ -135,6 +136,11 @@ export default function DriverHomeScreen({ navigation }) {
   };
 
   const handleLogout = async () => {
+    // 1. Wipe local state so the next login starts completely fresh
+    setTruckName('Loading...');
+    setCurrentTrip(null);
+    
+    // 2. Actually sign out of Supabase
     await supabase.auth.signOut();
   };
 
