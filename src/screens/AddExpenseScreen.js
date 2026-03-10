@@ -61,7 +61,7 @@ export default function AddExpenseScreen({ route, navigation }) {
         {
           trip_id: trip.id,
           // CRITICAL: We need the vehicle_id here so the web admin dashboard can track it!
-          vehicle_id: trip.vehicle_id, 
+          
           type: category === 'Other' ? 'Other' : category,
           amount: numericAmount,
           description: category === 'Other' ? finalDescription : category 
