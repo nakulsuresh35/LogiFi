@@ -72,11 +72,7 @@ export default function DriverHomeScreen({ navigation }) {
       setAlertActive(true);
       try {
         const { sound } = await Audio.Sound.createAsync(
-<<<<<<< HEAD
-           require('../../assets/audio/police_siren.wav') 
-=======
            { uri: 'https://actions.google.com/sounds/v1/alarms/spaceship_alarm.ogg' } 
->>>>>>> 069a527d3cb50eebf35b382a13be416b5380ec65
         );
         soundInstance = sound;
         await sound.setIsLoopingAsync(true);
