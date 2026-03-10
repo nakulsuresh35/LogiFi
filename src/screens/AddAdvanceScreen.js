@@ -1,12 +1,12 @@
 import { IndianRupee } from 'lucide-react-native';
 import { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView, Platform,
-    StyleSheet,
-    Text, TextInput, TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView, Platform,
+  StyleSheet,
+  Text, TextInput, TouchableOpacity,
+  View
 } from 'react-native';
 import { COLORS } from '../constants/colors';
 import { supabase } from '../lib/supabase';
@@ -17,18 +17,34 @@ export default function AddAdvanceScreen({ route, navigation }) {
   const [loading, setLoading] = useState(false);
 
   const handleUpdateAdvance = async () => {
-    if (!amount) {
-      Alert.alert("Missing Info", "Please enter the amount received.");
-      return;
+    // --- 1. IRONCLAD VALIDATION WALL ---
+    const addedAmount = parseFloat(amount);
+
+    // Check for empty, NaN, or zero/negative amounts
+    if (!amount || isNaN(addedAmount) || addedAmount <= 0) {
+      Alert.alert(
+        "Invalid Amount", 
+        "Please enter a valid amount greater than zero."
+      );
+      return; // ⛔ Stops here
     }
+
+    // Sanity check to prevent accidental 10-digit typos
+    if (addedAmount > 500000) {
+      Alert.alert(
+        "Amount Too High", 
+        "This advance seems unusually high. Please check for typos before saving."
+      );
+      return; // ⛔ Stops here
+    }
+    // --- END OF VALIDATION ---
 
     setLoading(true);
     try {
-      // 1. Calculate new total
-      const addedAmount = parseFloat(amount);
+      // 2. Calculate new total
       const newTotal = (trip.advance_amount || 0) + addedAmount;
 
-      // 2. Update Supabase
+      // 3. Update Supabase
       const { error } = await supabase
         .from('trips')
         .update({ advance_amount: newTotal })
@@ -61,7 +77,8 @@ export default function AddAdvanceScreen({ route, navigation }) {
           placeholder="e.g. 2000" 
           keyboardType="numeric"
           value={amount}
-          onChangeText={setAmount}
+          // The UI Lock is perfectly implemented here:
+          onChangeText={(text) => setAmount(text.replace(/[^0-9.]/g, ''))}
           autoFocus={true}
         />
 

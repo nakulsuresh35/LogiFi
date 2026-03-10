@@ -1,13 +1,11 @@
-import { Picker } from '@react-native-picker/picker'; // <--- NEW IMPORT
+import { Picker } from '@react-native-picker/picker';
 import { Droplets, FileText, Fuel } from 'lucide-react-native';
 import { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView, Platform,
-    StyleSheet,
-    Text, TextInput, TouchableOpacity,
-    View
+  ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
+  StyleSheet,
+  Text, TextInput, TouchableOpacity,
+  View
 } from 'react-native';
 import { COLORS } from '../constants/colors';
 import { supabase } from '../lib/supabase';
@@ -27,35 +25,46 @@ export default function AddExpenseScreen({ route, navigation }) {
   // Helper to get Icon based on category
   const getIcon = () => {
     if (category === 'Diesel') return <Fuel size={50} color={COLORS.primary} />;
-    if (category === 'AdBlue') return <Droplets size={50} color="#3b82f6" />; // Blue for AdBlue
+    if (category === 'AdBlue') return <Droplets size={50} color="#3b82f6" />; 
     return <FileText size={50} color={COLORS.secondary} />;
   };
 
   const handleSubmit = async () => {
-    if (!amount) {
-      Alert.alert("Missing Info", "Please enter the amount.");
-      return;
+    // --- 1. IRONCLAD MATH VALIDATION ---
+    const numericAmount = parseFloat(amount);
+
+    if (!amount || isNaN(numericAmount) || numericAmount <= 0) {
+      Alert.alert("Invalid Amount", "Please enter a valid amount greater than zero.");
+      return; // ⛔ Stops here
     }
 
-    // Determine the final description
+    if (numericAmount > 200000) {
+      Alert.alert("Amount Too High", "This expense seems unusually high. Please double-check for typos.");
+      return; // ⛔ Stops here
+    }
+
+    // --- 2. STRING VALIDATION (For 'Other' category) ---
     let finalDescription = '';
     if (category === 'Other') {
-        finalDescription = selectedType === 'Custom' ? customDescription : selectedType;
-        if (selectedType === 'Custom' && !customDescription) {
-            Alert.alert("Missing Info", "Please enter a description for Custom expense.");
-            return;
+        finalDescription = selectedType === 'Custom' ? customDescription.trim() : selectedType;
+        
+        if (selectedType === 'Custom' && !finalDescription) {
+            Alert.alert("Missing Info", "Please enter a description for this Custom expense.");
+            return; // ⛔ Stops here if they hit spacebar repeatedly
         }
     }
 
+    // --- 3. SAVE TO SUPABASE ---
     setLoading(true);
     try {
       const { error } = await supabase.from('expenses').insert([
         {
           trip_id: trip.id,
-          type: category === 'Other' ? 'Other' : category, // Saves 'Diesel', 'AdBlue', or 'Other'
-          amount: parseFloat(amount),
-          // We save the specific subtype (Toll/Grease) in description column
-          description: category === 'Other' ? finalDescription : null 
+          // CRITICAL: We need the vehicle_id here so the web admin dashboard can track it!
+          vehicle_id: trip.vehicle_id, 
+          type: category === 'Other' ? 'Other' : category,
+          amount: numericAmount,
+          description: category === 'Other' ? finalDescription : category 
         }
       ]);
 
@@ -114,12 +123,13 @@ export default function AddExpenseScreen({ route, navigation }) {
         {/* AMOUNT INPUT (Always Visible) */}
         <Text style={styles.label}>Amount (₹)</Text>
         <TextInput 
+          // The UI Lock prevents minus signs and letters
+          onChangeText={(text) => setAmount(text.replace(/[^0-9.]/g, ''))}
           style={styles.input} 
           placeholder="e.g. 500" 
           keyboardType="numeric"
           value={amount}
-          onChangeText={setAmount}
-          autoFocus={category !== 'Other'} // Auto-focus only if not using dropdown first
+          autoFocus={category !== 'Other'} 
         />
 
         <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} disabled={loading}>
